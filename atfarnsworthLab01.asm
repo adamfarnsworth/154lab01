@@ -2,8 +2,16 @@
     #globals
     emptyArrayC: .space 32 #1 word = 4 bytes, 8 words = 32 bytes
     emptyArrayD: .space 32 #1 word = 4 bytes, 8 words = 32 bytes    
+    # wordSet1: .word 0, 0, 0, 0, 0, 0, 0, 0xffffffff
+    # wordSet2: .word 0, 0, 0, 0, 0, 0, 0, 0xffffffff
     wordSet1: .word 1, 2, 3, 4, 5, 6, 7, 8
     wordSet2: .word 0, 2, 4, 8, 16, 32, 64, 128
+    # wordSet1: .word 1, 2, 3, 4, 5, 6, 7, 8
+    # wordSet2: .word 1, 2, 3, 4, 5, 6, 7, 8
+    # wordSet1: .word 1, 2, 3, 4, 5, 6, 7, 8
+    # wordSet2: .word 0, 0, 0, 0, 0, 0, 0, 0
+    # wordSet1: .word 1, 2, 3, 4, 5, 6, 7, 8
+    # wordSet2: .word 0, 0, 0, 0, 0, 0, 0, 1    
 
   .text # Assembly language instructions
 
@@ -34,8 +42,7 @@ main:
   move 	$t1, $zero		          # Count = 0
   move  $t6, $zero              # overflow = 0
   
-  li  $v0, 1 
-  syscall
+
 #___________________________________________________________________________
 # Addition
 #___________________________________________________________________________  
@@ -57,11 +64,14 @@ sll   $t8, $t5, 16              # xx..xx00..00
 srl   $t8, $t8, 16              # 00..00xx..xx 
 add   $s2, $t7, $t8             # rhs = rhsA[i] + rhsB[i]
 add   $s2, $s2, $t6             # rhs = rhs + 0 or 1 
-bgt		$s2, 32767, bitCarryRHS	  # if rhs > maxInt then bitCarry
+bgt		$s2, 65535, bitCarryRHS	  # if rhs > maxInt then bitCarry
 move	$t6, $zero		            # overflow = flase   
 j		continueRHS				          # jump to else
 bitCarryRHS:
-  li		$t6, 1		              # overflow = true 
+  # getting rid of carry bit
+  sll   $s2, $s2, 16              # xx..xx00..00
+  srl   $s2, $s2, 16              # 00..00xx..xx  
+  li		$t6, 1		                # overflow = true 
 
 continueRHS:
   # adding left side
@@ -69,17 +79,20 @@ continueRHS:
   srl   $t8, $t5, 16              # 00..00xx..xx 
   add   $s1, $t7, $t8             # LHS = lhsA[i] + lhsB[i]
   add   $s1, $s1, $t6             # LHS = LHS + 0 or 1
-  bgt		$s1, 32767, bitCarryLHS	  # if LHS > maxInt then bitCarry
+  bgt		$s1, 65535, bitCarryLHS	  # if LHS > maxInt then bitCarry
   move	$t6, $zero		            # overflow = flase   
   j		continueLHS				          # jump to else
   bitCarryLHS:
+    # getting rid of carry bit
+    sll   $s1, $s1, 16              # xx..xx00..00
+    srl   $s1, $s1, 16              # 00..00xx..xx  
     li		$t6, 1		              # overflow = true 
 continueLHS:
   sll   $s1, $s1, 16             # xx..xx00..00
   # add LHS and RHS together
   add   $t0, $s1, $s2            # temp = LHS + RHS
   sw		$t0, 0($s3)		           # C[i] = temp
-  sll   $s3, $s3, 4              # i++ 
+  addi   $s3, $s3, 4             # i++ 
   
   addi	$t1, $t1, 1			         # Count++
   blt		$t1, 8, startAdd	       # if Count < 8, repeat
@@ -109,7 +122,6 @@ settingB:
 
   #setting B[i] to -B[i]
   not   $t5, $t5                # flip dem bits
-  add   $t5, $t5, 1             # add 1
   add   $t1, $t1, 1             # count ++
   sw		$t5, 0($t3)		          # saving new value
   
@@ -117,32 +129,33 @@ settingB:
   
 
 move 	  $t1, $zero		          # Count = 0
+
+la		$a0, wordSet1		          # A = first set of words
+li		$t6, 1		                # overflow = true 
 b		startAdd			              # branch to startAdd
 
-
-   
   
 
 end:
-move $t1, $zero
-  while:
-    # getting position for next value
-  sll   $t2, $t1, 2             # offset A = count*4
-  addu	$t2, $t2, $s4		        # offset A = offset + &A
-  lw $t0, 0($t2)
+# move $t1, $zero
+#   while:
+#     # getting position for next value
+#   sll   $t2, $t1, 2             # offset A = count*4
+#   addu	$t2, $t2, $s4		        # offset A = offset + &A
+#   lw $t0, 0($t2)
   
-  # print current number
-  li $v0, 1
-  move $a0, $t0
-  syscall
+#   # print current number
+#   li $v0, 1
+#   move $a0, $t0
+#   syscall
 
-  # # print space
-  # li $v0, 4
-  # la $a0, " "
-  # syscall
+#   # # print space
+#   # li $v0, 4
+#   # la $a0, " "
+#   # syscall
 
-  add $t1, $t1, 1
-  blt		$t1, 8, while	              # if $t1 => 8 while
+#   add $t1, $t1, 1
+#   blt		$t1, 8, while	              # if $t1 => 8 while
   
   nop
 
